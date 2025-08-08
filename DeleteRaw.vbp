@@ -93,3 +93,73 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     End If
 End Sub
 
+------------------
+
+
+' --- Добавляем сортировку по столбцу C (3-й столбец) ---
+With Me.Sort
+    .SortFields.Clear
+    .SortFields.Add Key:=Me.Range("C4:C" & lastRow), _
+        SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+    .SetRange Me.Range("B3:M" & lastRow)
+    .Header = xlYes
+    .MatchCase = False
+    .Orientation = xlTopToBottom
+    .Apply
+End With
+' --- Конец добавки ---
+
+
+
+----------------
+
+
+Это добавим в твой обработчик Worksheet_Change, 
+после удаления строк и перед 
+выравниванием и автофитом:
+
+
+
+' --- Начало добавки для столбца О ---
+Dim valM As Variant
+For rowNum = 4 To lastRow
+    valM = Me.Cells(rowNum, "M").Value
+    If IsNumeric(valM) Then
+        If valM = 0 Then
+            Me.Cells(rowNum, "O").Value = "Customer"
+        Else
+            Me.Cells(rowNum, "O").Value = "FTD"
+        End If
+    Else
+        Me.Cells(rowNum, "O").Value = "" ' Очищаем если не число
+    End If
+Next rowNum
+' --- Конец добавки ---
+
+
+унопка очистки 
+
+Sub ClearAndReset()
+    Dim ws As Worksheet
+    Dim col As Long
+    Dim defaultWidths() As Double
+    Set ws = ThisWorkbook.Sheets("Sheet1") ' <-- замени на имя своего листа
+    
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    
+    ' Очистка значений с B4 по N до последней строки с данными
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    If lastRow < 4 Then lastRow = 4
+    ws.Range("B4:N" & lastRow).ClearContents
+    
+    ' Сброс ширины столбцов B:N по ширине заголовков в строке 3
+    For col = 2 To 14 ' B=2 ... N=14
+        ws.Columns(col).ColumnWidth = ws.Range(ws.Cells(3, col), ws.Cells(3, col)).ColumnWidth
+    Next col
+    
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+End Sub
+
