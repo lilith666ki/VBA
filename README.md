@@ -1,19 +1,19 @@
 # VBA
 Sort for rep
-Private Sub Worksheet_Change(ByVal Target As Range)
-    Dim ws As Worksheet
-    Dim lastRow As Long
-    Dim r As Long
-    Dim c As Long
-    Dim rowRange As Range
-    Dim isEmpty As Boolean
-    Dim checkRange As Range
-    
-    Set ws = Me
-    
+
+    Private Sub Worksheet_Change(ByVal Target As Range)
+        Dim ws As Worksheet
+        Dim lastRow As Long
+        Dim r As Long
+        Dim c As Long
+        Dim rowRange As Range
+        Dim isEmpty As Boolean
+        Dim checkRange As Range
+        
+        Set ws = Me
+        
     ' Отслеживаем изменения в диапазоне B3:N последней строки
-    Set checkRange = Intersect(Target, ws.Range("B3:N" & ws.Rows.Count))
-    If checkRange Is Nothing Then Exit Sub
+    Set checkRange = Intersect(Target, ws.Range("B3:N" & ws.Rows.Count)) If checkRange Is Nothing Then Exit Sub
     
     Application.EnableEvents = False
     Application.ScreenUpdating = False
@@ -47,4 +47,4 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     
     Application.EnableEvents = True
     Application.ScreenUpdating = True
-End Sub
+    End Sub
