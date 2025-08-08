@@ -32,3 +32,64 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     
     Application.EnableEvents = True
 End Sub
+
+
+
+////
+
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim checkRange As Range, cell As Range
+    Dim col As Long, lastRow As Long
+    
+    ' Определяем последнюю заполненную строку в столбце B
+    lastRow = Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
+    If lastRow < 4 Then lastRow = 4
+    
+    ' Диапазон для проверки (B:M, начиная с 4-й строки)
+    Set checkRange = Me.Range("B4:M" & lastRow)
+    
+    ' Если изменили что-то в нашем диапазоне
+    If Not Intersect(Target, checkRange) Is Nothing Then
+        
+        Application.EnableEvents = False
+        
+        Dim rowNum As Long
+        For rowNum = lastRow To 4 Step -1
+            Dim matchAll As Boolean
+            matchAll = True
+            
+            ' Проверяем, равны ли все ячейки в строке значениям в строке 3
+            For col = 2 To 13 ' B=2, M=13
+                If CStr(Me.Cells(rowNum, col).Value) <> CStr(Me.Cells(3, col).Value) Then
+                    matchAll = False
+                    Exit For
+                End If
+            Next col
+            
+            ' Если все совпали — удаляем строку
+            If matchAll Then
+                Me.Rows(rowNum).Delete Shift:=xlUp
+            End If
+        Next rowNum
+        
+        ' Обновляем lastRow после удаления строк
+        lastRow = Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
+        If lastRow < 4 Then lastRow = 4
+        
+        ' Выравнивание текста по центру во всем диапазоне B:M
+        Me.Range("B4:M" & lastRow).HorizontalAlignment = xlCenter
+        Me.Range("B4:M" & lastRow).VerticalAlignment = xlCenter
+        
+        ' Автоматическая подгонка ширины столбцов
+        Me.Columns("B:M").AutoFit
+        
+        ' Включаем автофильтры на 3-й строке (если вдруг убрались)
+        If Not Me.AutoFilterMode Then
+            Me.Range("B3:M3").AutoFilter
+        End If
+        
+        Application.EnableEvents = True
+    End If
+End Sub
+
