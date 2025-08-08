@@ -1,0 +1,34 @@
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim ws As Worksheet
+    Dim colStart As Long, colEnd As Long
+    Dim matchAll As Boolean
+    Dim c As Long
+    
+    Set ws = Me
+    
+    ' Диапазон, который проверяем (B:H) и только строка 4
+    colStart = 2  ' B
+    colEnd = 8    ' H
+    
+    ' Если изменения не затрагивают B4:H4 — выходим
+    If Intersect(Target, ws.Range(ws.Cells(4, colStart), ws.Cells(4, colEnd))) Is Nothing Then Exit Sub
+    
+    Application.EnableEvents = False
+    
+    ' Проверка: все ли значения равны значениям в строке 3 и являются текстом
+    matchAll = True
+    For c = colStart To colEnd
+        If ws.Cells(4, c).Value <> ws.Cells(3, c).Value Or _
+           VarType(ws.Cells(4, c).Value) <> vbString Then
+            matchAll = False
+            Exit For
+        End If
+    Next c
+    
+    ' Если всё совпадает — удаляем строку 4 (сдвигаем всё выше)
+    If matchAll Then
+        ws.Range(ws.Cells(4, colStart), ws.Cells(4, colEnd)).Delete Shift:=xlUp
+    End If
+    
+    Application.EnableEvents = True
+End Sub
