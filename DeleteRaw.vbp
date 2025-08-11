@@ -250,6 +250,151 @@ vbModeless — значит, что окно будет висеть над ли
 
 4️⃣ Код макроса очистки (ClearAndReset) можно оставить в обычном модуле, чтобы он вызывался при клике на кнопку.
 
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+
+    ' --- твой существующий код, например сортировка, проверки и т.д. ---
+
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim r As Long
+    Set ws = Me
+
+    lastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    If lastRow < 4 Then lastRow = 4
+
+    ' Удаляем пустые строки снизу вверх
+    For r = lastRow To 4 Step -1
+        If Application.WorksheetFunction.CountA(ws.Range("B" & r & ":N" & r)) = 0 Then
+            ws.Rows(r).Delete Shift:=xlUp
+        End If
+    Next r
+
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+End Sub
+
+
+
+
+
+кнопка
+В МОДУЛЬ 1:
+' === Module: Module1 ===
+Option Explicit
+
+Public gBackupSheetName As String
+Public gOriginalSheetName As String
+
+' Запускается с указанием листа: Call RemoveEmptyRowsWithUndo(Me)
+Public Sub RemoveEmptyRowsWithUndo(ByVal ws As Worksheet)
+    Dim lastRow As Long, r As Long
+    Dim backupName As String
+    Dim bs As Worksheet
+
+    backupName = "__Backup_RemoveEmptyRows"
+    On Error Resume Next
+    ' Удалим старый резерв, если есть
+    ThisWorkbook.Worksheets(backupName).Delete
+    On Error GoTo 0
+
+    ' Определяем последнюю строку по столбцу B
+    lastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    If lastRow < 4 Then lastRow = 4
+
+    ' Создаём скрытый лист для бэкапа и копируем туда строки 3..lastRow (включая заголовки)
+    Set bs = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    bs.Name = backupName
+    bs.Visible = xlSheetVeryHidden
+    ws.Rows("3:" & lastRow).Copy Destination:=bs.Rows("3")
+
+    ' Запомним имена для Undo
+    gBackupSheetName = backupName
+    gOriginalSheetName = ws.Name
+
+    ' Удаляем пустые строки в диапазоне B:N (с 4-й строки вниз)
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+
+    For r = lastRow To 4 Step -1
+        If Application.WorksheetFunction.CountA(ws.Range("B" & r & ":N" & r)) = 0 Then
+            ws.Rows(r).Delete Shift:=xlUp
+        End If
+    Next r
+
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+
+    ' Зарегистрируем Undo — это позволит Ctrl+Z выполнить UndoRemoveEmptyRows
+    On Error Resume Next
+    Application.OnUndo "Undo Remove Empty Rows", "UndoRemoveEmptyRows"
+    On Error GoTo 0
+End Sub
+
+' Функция восстановления (выполняется через Application.OnUndo)
+Public Sub UndoRemoveEmptyRows()
+    Dim ws As Worksheet, bs As Worksheet
+    Dim lastRowBackup As Long, countRows As Long
+
+    If gBackupSheetName = "" Or gOriginalSheetName = "" Then
+        MsgBox "Нет резервной копии для отмены.", vbExclamation
+        Exit Sub
+    End If
+
+    On Error GoTo ErrHandler
+    Set bs = ThisWorkbook.Worksheets(gBackupSheetName)
+    Set ws = ThisWorkbook.Worksheets(gOriginalSheetName)
+
+    lastRowBackup = bs.Cells(bs.Rows.Count, "B").End(xlUp).Row
+    If lastRowBackup < 3 Then
+        MsgBox "Резерв пуст.", vbExclamation
+        GoTo Cleanup
+    End If
+
+    countRows = lastRowBackup - 3 + 1 ' количество строк в резерве, начиная с 3
+
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+
+    ' Удалим текущие строки 3..(3+countRows-1) если они есть,
+    ' затем вставим резерв сверху начиная с 3-й строки
+    On Error Resume Next
+    ws.Rows("3:" & (3 + countRows - 1)).Delete Shift:=xlUp
+    On Error GoTo 0
+
+    bs.Rows("3:" & lastRowBackup).Copy
+    ws.Rows("3").Insert Shift:=xlDown
+
+    ' Удаляем временный лист резервной копии
+    Application.DisplayAlerts = False
+    bs.Delete
+    Application.DisplayAlerts = True
+
+    ' Очистим глобальные переменные
+    gBackupSheetName = ""
+    gOriginalSheetName = ""
+
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+
+Cleanup:
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Ошибка при восстановлении: " & Err.Description, vbExclamation
+    Resume Cleanup
+End Sub
+
+
+
+
+В ЛИСТ 1:
+изменить 
+Call RemoveEmptyRowsWithUndo(Me)
+
 
 
 
