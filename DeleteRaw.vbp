@@ -163,3 +163,55 @@ Sub ClearAndReset()
     Application.ScreenUpdating = True
 End Sub
 
+
+
+..
+
+
+вставляешь этот кусок в конец своего макроса, который  отвечает за сортировку.
+
+Например, если у тебя код сортировки заканчивается чем-то вроде:
+
+.SortFields.Clear
+.SortFields.Add Key:=Range("C3:C" & LastRow), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+.SetRange Range("A3:N" & LastRow)
+.Header = xlYes
+.Apply
+End With
+
+То сразу после этого блока (и перед End Sub) добавляешь:
+
+Call RemoveEmptyRows
+
+А саму подпрограмму RemoveEmptyRows вставляешь в том же модуле, но отдельно, вот так:
+
+Private Sub RemoveEmptyRows()
+    Dim ws As Worksheet
+    Dim LastRow As Long
+    Dim r As Long
+    
+    Set ws = Me ' Если код в модуле листа
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    LastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    
+    For r = LastRow To 4 Step -1
+        If Application.WorksheetFunction.CountA(ws.Range("B" & r & ":N" & r)) = 0 Then
+            ws.Rows(r).Delete
+        End If
+    Next r
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+End Sub
+
+📌 Итог:
+	•	RemoveEmptyRows будет удалять все пустые строки в диапазоне B:N.
+	•	После сортировки всё будет подтягиваться вверх без дырок.
+	•	Сортировка по C (А-Я) останется как у тебя.
+
+
+
+
