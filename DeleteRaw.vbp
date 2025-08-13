@@ -393,7 +393,12 @@ End Sub
 
 В ЛИСТ 1:
 изменить 
-Call RemoveEmptyRowsWithUndo(Me)
+Call RemoveEmptyRowsWithUndo(Me)' 
+
+Подтянуть пустые строки вверх
+On Error Resume Next
+Me.Range("B3:N" & Me.Cells(Me.Rows.Count, "B").End(xlUp).Row).SpecialCells(xlCellTypeBlanks).Delete Shift:=xlUp
+On Error GoTo 0
 
 
 
