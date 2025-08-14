@@ -477,4 +477,58 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 End Sub
 
 
+перед закрытием очистув
 
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    Dim ws As Worksheet
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets("fromCRM")
+    On Error GoTo 0
+    
+    If ws Is Nothing Then Exit Sub ' Если листа нет — выходим
+    
+    ' Снимаем все фильтры
+    If ws.AutoFilterMode Then ws.AutoFilterMode = False
+    
+    ' Вызываем твою процедуру очистки
+    ClearAndReset
+End Sub
+
+
+очистка 
+Public Sub ClearAndReset()
+    Dim ws As Worksheet
+    Dim col As Long
+    Dim lastRow As Long
+    Dim rng As Range
+    
+    Set ws = ThisWorkbook.Sheets("fromCRM")
+    
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    
+    ' Определяем последнюю заполненную строку по всему диапазону B:N
+    With ws
+        lastRow = 4
+        For col = 2 To 14 ' B=2 ... N=14
+            If .Cells(.Rows.Count, col).End(xlUp).Row > lastRow Then
+                lastRow = .Cells(.Rows.Count, col).End(xlUp).Row
+            End If
+        Next col
+        
+        ' Если данных нет, остаёмся на строке 4
+        If lastRow < 4 Then lastRow = 4
+        
+        ' Очищаем содержимое
+        .Range("B4:N" & lastRow).ClearContents
+        
+        ' Сбрасываем ширину колонок на ту, что у строки 3
+        For col = 2 To 14
+            .Columns(col).ColumnWidth = .Cells(3, col).ColumnWidth
+        Next col
+    End With
+    
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+End Sub
