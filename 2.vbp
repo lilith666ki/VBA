@@ -45,3 +45,67 @@ Next r
 Application.EnableEvents = True
 Application.ScreenUpdating = True
 End Sub
+
+
+
+
+////////
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim checkRange As Range
+    Dim col As Long, lastRow As Long
+    Dim rowNum As Long
+    Dim valDate As Variant
+    
+    ' Определяем последнюю заполненную строку в столбце B
+    lastRow = Me.Cells(Me.Rows.Count, "B").End(xlUp).Row
+    If lastRow < 2 Then lastRow = 2 ' начинаем со второй строки
+    
+    ' Диапазон для отслеживания изменений
+    Set checkRange = Me.Range("B2:L" & lastRow)
+    
+    If Not Intersect(Target, checkRange) Is Nothing Then
+        Application.EnableEvents = False
+        
+        ' Форматируем столбцы B, C и J как "dd/mm/yyyy hh:mm"
+        For rowNum = 2 To lastRow
+            Me.Cells(rowNum, "B").NumberFormat = "dd/mm/yyyy hh:mm"
+            Me.Cells(rowNum, "C").NumberFormat = "dd/mm/yyyy hh:mm"
+            Me.Cells(rowNum, "J").NumberFormat = "dd/mm/yyyy hh:mm"
+        Next rowNum
+        
+        ' Выровнять весь текст по левому краю
+        Me.Range("B2:L" & lastRow).HorizontalAlignment = xlLeft
+        Me.Range("B2:L" & lastRow).VerticalAlignment = xlCenter
+        
+        ' Проверка дат в столбце B (со 2 строки)
+        For rowNum = 2 To lastRow
+            valDate = Me.Cells(rowNum, "B").Value
+            If IsDate(valDate) Then
+                If CDate(valDate) < (Date - 1) Then ' раньше чем вчера
+                    Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbRed
+                Else
+                    Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbBlack
+                End If
+            Else
+                Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbBlack
+            End If
+        Next rowNum
+        
+        ' Сортировка по столбцу B от А до Я (по возрастанию даты)
+        With Me.Sort
+            .SortFields.Clear
+            .SortFields.Add Key:=Me.Range("B2:B" & lastRow), _
+                SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+            .SetRange Me.Range("B2:L" & lastRow)
+            .Header = xlNo
+            .MatchCase = False
+            .Orientation = xlTopToBottom
+            .Apply
+        End With
+        
+        Application.EnableEvents = True
+    End If
+End Sub
+
+
