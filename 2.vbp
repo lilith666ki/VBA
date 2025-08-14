@@ -179,5 +179,62 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     End If
 End Sub
 
+в клин ресет
+Public Sub CleanAndPullUp(ws As Worksheet, rng As Range)
+    Dim lastRow As Long, tempLast As Long
+    Dim rowNum As Long, col As Long
+    Dim emptyRow As Boolean
+    
+    ' Находим последнюю строку в диапазоне по всем столбцам
+    lastRow = rng.Row
+    For col = rng.Columns(1).Column To rng.Columns(rng.Columns.Count).Column
+        tempLast = ws.Cells(ws.Rows.Count, col).End(xlUp).Row
+        If tempLast > lastRow Then lastRow = tempLast
+    Next col
+    
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    
+    ' 1️⃣ Удаляем полностью пустые строки снизу вверх
+    For rowNum = lastRow To rng.Row Step -1
+        emptyRow = Application.WorksheetFunction.CountA(ws.Range(ws.Cells(rowNum, rng.Columns(1).Column), _
+            ws.Cells(rowNum, rng.Columns(rng.Columns.Count).Column))) = 0
+        If emptyRow Then
+            ws.Rows(rowNum).Delete
+        End If
+    Next rowNum
+    
+    ' 2️⃣ Обновляем lastRow после удаления
+    lastRow = rng.Row
+    For col = rng.Columns(1).Column To rng.Columns(rng.Columns.Count).Column
+        tempLast = ws.Cells(ws.Rows.Count, col).End(xlUp).Row
+        If tempLast > lastRow Then lastRow = tempLast
+    Next col
+    
+    ' 3️⃣ Сохраняем формат для непустых строк
+    For rowNum = rng.Row To lastRow
+        With ws.Range(ws.Cells(rowNum, rng.Columns(1).Column), ws.Cells(rowNum, rng.Columns(rng.Columns.Count).Column))
+            .HorizontalAlignment = xlLeft
+            .VerticalAlignment = xlCenter
+            ' Сохраняем существующий фон, цвет текста и границы
+            ' Можно добавить проверку цвета заливки и выставление нижней границы, если нужно
+        End With
+    Next rowNum
+    
+    ' 4️⃣ Если диапазон полностью пуст — сброс формата
+    If Application.WorksheetFunction.CountA(ws.Range(ws.Cells(rng.Row, rng.Columns(1).Column), _
+        ws.Cells(lastRow, rng.Columns(rng.Columns.Count).Column))) = 0 Then
+        With ws.Range(ws.Cells(rng.Row, rng.Columns(1).Column), ws.Cells(lastRow, rng.Columns(rng.Columns.Count).Column))
+            .Interior.ColorIndex = xlNone
+            .Font.ColorIndex = xlAutomatic
+            .Borders.LineStyle = xlNone
+            .HorizontalAlignment = xlGeneral
+            .VerticalAlignment = xlBottom
+        End With
+    End If
+    
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+End Sub
 
 
