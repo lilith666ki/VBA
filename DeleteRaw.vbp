@@ -532,3 +532,37 @@ Public Sub ClearAndReset()
     Application.EnableEvents = True
     Application.ScreenUpdating = True
 End Sub
+
+
+
+вызов
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    Dim ws As Worksheet
+    
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    
+    ' Проходим по каждому листу
+    For Each ws In ThisWorkbook.Worksheets
+        
+        ' Снимаем фильтры на листе
+        If ws.AutoFilterMode Then ws.AutoFilterMode = False
+        
+        ' В зависимости от имени листа вызываем нужную процедуру
+        Select Case ws.Name
+            Case "fromCRM"
+                Call ClearAndReset_fromCRM
+            Case "Лист2"
+                Call ClearAndReset_List2
+            Case "Report"
+                Call ClearAndReset_Report
+            ' Добавляешь сюда новые листы и их процедуры
+        End Select
+        
+    Next ws
+    
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+End Sub
+
+
