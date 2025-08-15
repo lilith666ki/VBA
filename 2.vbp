@@ -235,6 +235,261 @@ Public Sub CleanAndPullUp(ws As Worksheet, rng As Range)
     
     Application.EnableEvents = True
     Application.ScreenUpdating = True
+End ' ===== ЛИСТ fromTRCKBS =====
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim checkRange As Range
+    Dim col As Long, lastRow As Long, tempLast As Long
+    Dim rowNum As Long
+    Dim valDate As Variant, onlyDate As Date
+
+    ' lastRow по ВСЕМ столбцам B:L
+    lastRow = 2
+    For col = 2 To 12 ' B..L
+        tempLast = Me.Cells(Me.Rows.Count, col).End(xlUp).Row
+        If tempLast > lastRow Then lastRow = tempLast
+    Next col
+
+    Set checkRange = Me.Range("B2:L" & lastRow)
+    If Intersect(Target, checkRange) Is Nothing Then Exit Sub
+
+    Application.EnableEvents = False
+
+    ' Убираем любые объединения, чтобы не было Merge & Center после вставки
+    Me.Range("B2:L" & lastRow).UnMerge
+
+    ' Подтягиваем пустые строки (ничего не форматирует!)
+    Call CleanAndPullUp(Me, checkRange)
+
+    ' Пересчитать lastRow после подтягивания
+    lastRow = 2
+    For col = 2 To 12
+        tempLast = Me.Cells(Me.Rows.Count, col).End(xlUp).Row
+        If tempLast > lastRow Then lastRow = tempLast
+    Next col
+    Set checkRange = Me.Range("B2:L" & lastRow)
+
+    ' Формат колонок B,C,J как dd/mm/yyyy hh:mm (отображение)
+    If lastRow >= 2 Then
+        Me.Range("B2:B" & lastRow).NumberFormat = "dd/mm/yyyy hh:mm"
+        Me.Range("C2:C" & lastRow).NumberFormat = "dd/mm/yyyy hh:mm"
+        Me.Range("J2:J" & lastRow).NumberFormat = "dd/mm/yyyy hh:mm"
+    End If
+
+    ' Выравнивание
+    checkRange.HorizontalAlignment = xlLeft
+    checkRange.VerticalAlignment = xlCenter
+
+    ' НОРМАЛИЗАЦИЯ дат в B (жёстко dd/mm/yyyy hh:mm) + окраска:
+    '   старше чем вчера -> красный, иначе -> чёрный
+    For rowNum = 2 To lastRow
+        valDate = ParseDMY(Me.Cells(rowNum, "B").Value) ' ← КЛЮЧЕВОЕ: приводим к правильной дате
+
+        If IsDate(valDate) Then
+            ' Записываем нормализованную дату в ячейку (как Date), чтобы сортировка была корректной
+            Me.Cells(rowNum, "B").Value = CDate(valDate)
+            Me.Cells(rowNum, "B").NumberFormat = "dd/mm/yyyy hh:mm"
+
+            onlyDate = Int(CDate(valDate)) ' без времени
+            If onlyDate < (Date - 1) Then
+                Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbRed
+            Else
+                Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbBlack
+            End If
+        Else
+            ' Не дата — красить как обычный текст
+            Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbBlack
+        End If
+    Next rowNum
+
+    ' Сортировка по B (возрастание)
+    With Me.Sort
+        .SortFields.Clear
+        .SortFields.Add Key:=Me.Range("B2:B" & lastRow), _
+            SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        .SetRange Me.Range("B2:L" & lastRow)
+        .Header = xlNo
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .Apply
+    End With
+
+    Application.EnableEvents = True
 End Sub
 
+' === ЖЁСТКОЕ ПАРСИТЕ DD/MM/YYYY HH:MM (без догадок Excel) ===
+Private Function ParseDMY(ByVal v As Variant) As Variant
+    Dim s As String, parts() As String, datePart As String, timePart As String
+    Dim dParts() As String, d As Long, m As Long, y As Long
+    Dim t As Date
+
+    If IsEmpty(v) Or Len(Trim$(v & "")) = 0 Then
+        ParseDMY = Null
+        Exit Function
+    End If
+
+    ' Если уже настоящее значение Date (не строка) — ок
+    If IsDate(v) And VarType(v) <> vbString Then
+        ParseDMY = CDate(v)
+        Exit Function
+    End If
+
+    ' Нормализуем разделители и пробелы
+    s = Trim$(CStr(v))
+    s = Replace(Replace(Replace(s, ".", "/"), "-", "/"), Chr(160), " ")
+
+    parts = Split(s, " ")
+    datePart = parts(0)
+    If UBound(parts) >= 1 Then
+        On Error Resume Next
+        t = TimeValue(parts(1))
+        If Err.Number <> 0 Then t = 0
+        On Error GoTo 0
+    Else
+        t = 0
+    End If
+
+    dParts = Split(datePart, "/")
+    If UBound(dParts) <> 2 Then
+        ParseDMY = Null
+        Exit Function
+    End If
+
+    ' Предполагаем формат ДД/ММ/ГГГГ (как ты и требуешь)
+    On Error Resume Next
+    d = CLng(dParts(0)): m = CLng(dParts(1)): y = CLng(dParts(2))
+    If Err.Number <> 0 Then
+        ParseDMY = Null
+        Exit Function
+    End If
+    On Error GoTo 0
+
+    ' Собираем дату строго как dd/mm/yyyy + время
+    On Error Resume Next
+    ParseDMY = DateSerial(y, m, d) + t
+    If Err.Number <> 0 Then ParseDMY = Null
+    On Error GoTo 0
+End Function
+
+план б 
+For rowNum = 2 To lastRow
+    valDate = Me.Cells(rowNum, "B").Value
+    If IsDate(valDate) Then
+        Dim onlyDate As Date
+        onlyDate = Int(CDate(valDate)) ' убираем время
+        
+        If onlyDate < Date - 1 Then
+            Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbRed
+        Else
+            Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbWhite
+        End If
+    Else
+        Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbBlack
+    End If
+Next rowNum
+
+
+
+
+новый сьрос
+' ===== Модуль =====
+Public Sub CleanAndPullUp(ws As Worksheet, rng As Range)
+    Dim r As Long
+    Dim c As Long
+    Dim lastRow As Long
+    Dim isEmpty As Boolean
+    
+    lastRow = rng.Rows(rng.Rows.Count).Row
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    For r = 2 To lastRow
+        isEmpty = True
+        For c = rng.Columns(1).Column To rng.Columns(rng.Columns.Count).Column
+            If Len(ws.Cells(r, c).Value) > 0 Then
+                isEmpty = False
+                Exit For
+            End If
+        Next c
+        
+        If isEmpty Then
+            ws.Rows(r).Delete Shift:=xlUp
+            r = r - 1
+            lastRow = lastRow - 1
+        End If
+    Next r
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+End Sub
+
+' ===== Код листа =====
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim checkRange As Range
+    Dim col As Long, lastRow As Long
+    Dim rowNum As Long
+    Dim valDate As Variant
+    
+    ' Находим lastRow по всем колонкам B-L
+    lastRow = 2
+    Dim tempLast As Long
+    For col = 2 To 12
+        tempLast = Me.Cells(Me.Rows.Count, col).End(xlUp).Row
+        If tempLast > lastRow Then lastRow = tempLast
+    Next col
+    
+    Set checkRange = Me.Range("B2:L" & lastRow)
+    
+    If Not Intersect(Target, checkRange) Is Nothing Then
+        Application.EnableEvents = False
+        
+        ' Поднимаем строки без сброса формата
+        Call CleanAndPullUp(Me, checkRange)
+        
+        ' Пересчитываем lastRow после сдвига
+        lastRow = 2
+        For col = 2 To 12
+            tempLast = Me.Cells(Me.Rows.Count, col).End(xlUp).Row
+            If tempLast > lastRow Then lastRow = tempLast
+        Next col
+        
+        ' Форматирование дат
+        For rowNum = 2 To lastRow
+            Me.Cells(rowNum, "B").NumberFormat = "dd/mm/yyyy hh:mm"
+            Me.Cells(rowNum, "C").NumberFormat = "dd/mm/yyyy hh:mm"
+            Me.Cells(rowNum, "J").NumberFormat = "dd/mm/yyyy hh:mm"
+        Next rowNum
+        
+        Me.Range("B2:L" & lastRow).HorizontalAlignment = xlLeft
+        Me.Range("B2:L" & lastRow).VerticalAlignment = xlCenter
+        
+        ' Цвет для старых дат
+        For rowNum = 2 To lastRow
+            valDate = Me.Cells(rowNum, "B").Value
+            If IsDate(valDate) Then
+                If CDate(valDate) < (Date - 1) Then
+                    Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbRed
+                Else
+                    Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbWhite
+                End If
+            Else
+                Me.Range("B" & rowNum & ":L" & rowNum).Font.Color = vbBlack
+            End If
+        Next rowNum
+        
+        ' Сортировка по колонке B
+        With Me.Sort
+            .SortFields.Clear
+            .SortFields.Add Key:=Me.Range("B2:B" & lastRow), _
+                SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+            .SetRange Me.Range("B2:L" & lastRow)
+            .Header = xlNo
+            .MatchCase = False
+            .Orientation = xlTopToBottom
+            .Apply
+        End With
+        
+        Application.EnableEvents = True
+    End If
+End Sub
 
